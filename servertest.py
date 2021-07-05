@@ -9,6 +9,7 @@ import socketserver
 import sys
 import signal
 import os
+from gpsnav import *
 
 LED_G=digitalio.DigitalInOut(board.D23)
 LED_R=digitalio.DigitalInOut(board.D24)
@@ -24,7 +25,8 @@ MOT_L_B=pwmio.PWMOut(board.D19,frequency=25,duty_cycle=0)
 MOT_R_A=pwmio.PWMOut(board.D13,frequency=25,duty_cycle=0)
 MOT_R_B=pwmio.PWMOut(board.D6,frequency=25,duty_cycle=0)
 oncycle = 32768
-lastcommandtime = time.time()	
+lastcommandtime = time.time()
+ledson = True;
 def setSpeeds(left,right):
 	global oncycle
 	if(left>0):
@@ -43,13 +45,25 @@ def setSpeeds(left,right):
 motMode = "S"
 class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
 	def do_GET(self):
-		global oncycle, motMode, lastcommandtime
+		global oncycle, motMode, lastcommandtime,ledson,automode,lastGPS
 		# Sending an '200 OK' response
 		self.send_response(200)
 		# Setting the header
 		self.send_header("Content-type", "text/html")
+		self.send_header("Access-Control-Allow-Origin","*")
 		# Whenever using 'send_header', you also have to call 'end_headers'
 		self.end_headers()
+		if "H" in self.path and lastGPS:
+			waypoints = [(lastGPS['lat'],lastGPS['lon'])]
+			currentWaypoint = 0
+		if "A" in self.path:
+			motMode="S"
+			lastcommandtime=time.time()
+			automode=True
+		if "a" in self.path:
+			motMode="S"
+			lastcommandtime=time.time()
+			automode=False
 		if "F" in self.path:
 			motMode="F"
 			lastcommandtime=time.time()
@@ -79,8 +93,14 @@ class MyHttpRequestHandler(http.server.SimpleHTTPRequestHandler):
 			pct = (1+int(self.path[tpos+1]))*10
 			oncycle = int(65535*pct/100.0)
 			print("Oncycle: ",oncycle)
-		
-		self.wfile.write(bytes("OK", "utf8"))
+		if "i" in self.path:
+			ledson=False;
+		if "I" in self.path:
+			ledson=True;
+		if(lastGPS):
+			self.wfile.write(bytes("{P:'"+str(lastGPS['lat'])+","+str(lastGPS['lon'])+"',L:"+str(MOT_L_B.duty_cycle)+",R:"+str(MOT_R_B.duty_cycle)+",T:"+str(oncycle)+",I:"+str(ledson)+"}", "utf8"))
+		else:
+			self.wfile.write(bytes("{L:"+str(MOT_L_B.duty_cycle)+",R:"+str(MOT_R_B.duty_cycle)+",T:"+str(oncycle)+",I:"+str(ledson)+"}", "utf8"))
 
 handler_object = MyHttpRequestHandler
 
@@ -109,33 +129,45 @@ signal.signal(signal.SIGINT,quitHandler)
 
 beat=0
 def heartBeat():
-	global motMode,beat,lastcommandtime
+	global motMode,beat,lastcommandtime,ledson,automode
 	print("beep")
 	beat+=1
+	if(automode):
+		motMode = autopilot()
 	if(motMode=="F"):
 		setSpeeds(-1,-1)
-		LED_R.value=True;
-		LED_G.value=True;
-		LED_W.value=((beat%4)!=0);
+		LED_R.value=True&ledson;
+		LED_G.value=True&ledson;
+		LED_W.value=((beat%4)!=0)&ledson;
 	if(motMode=="B"):
 		setSpeeds(1,1)
-		LED_W.value=True;
-		LED_G.value=((beat%4)!=0);
-		LED_R.value=((beat%4)!=0);
+		LED_W.value=True&ledson;
+		LED_G.value=((beat%4)!=0)&ledson;
+		LED_R.value=((beat%4)!=0)&ledson;
 	if(motMode=="R"):
 		setSpeeds(-1,0)
-		LED_W.value=True;
-		LED_G.value=((beat%4)!=0);
-		LED_R.value=True;
+		LED_W.value=True&ledson;
+		LED_G.value=((beat%4)!=0)&ledson;
+		LED_R.value=True&ledson;
 	if(motMode=="L"):
 		setSpeeds(0,-1)
-		LED_W.value=True;
-		LED_G.value=True;
-		LED_R.value=((beat%4)!=0);
+		LED_W.value=True&ledson;
+		LED_G.value=True&ledson;
+		LED_R.value=((beat%4)!=0)&ledson;
+	if(motMode=="FR"):
+                setSpeeds(-1,-0.5)
+                LED_W.value=True&ledson;
+                LED_G.value=((beat%2)!=0)&ledson;
+                LED_R.value=True&ledson;
+        if(motMode=="FL"):
+                setSpeeds(-0.5,-1)
+                LED_W.value=True&ledson;
+                LED_G.value=True&ledson;
+                LED_R.value=((beat%2)!=0)&ledson;
 	if(motMode=="S"):
-		LED_W.value=True;
-		LED_G.value=True;
-		LED_R.value=True;
+		LED_W.value=True&ledson;
+		LED_G.value=True&ledson;
+		LED_R.value=True&ledson;
 		setSpeeds(0,0)
 	if lastcommandtime < time.time()-10:
 		setSpeeds(0,0)
