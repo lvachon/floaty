@@ -8,11 +8,10 @@ import math
 import os
 import gps
 
-#18.221 62.345 48.369 90.085
-minX=18.221
-maxX=62.345
-minY=48.369
-maxY=90.085
+minX=126.654
+maxX=163.99
+minY=-36.85
+maxY=8.61
 mpu9250 = FaBo9Axis_MPU9250.MPU9250()
 gSession = gps.gps(host="localhost", port="2947")
 gSession.stream(flags=gps.WATCH_JSON)
@@ -37,8 +36,9 @@ def compass():
         if(minX==maxX or minY==maxY): return 0
         x = 2*(mag['x']-minX)/(maxX-minX) - 1
         y = 2*(mag['y']-minY)/(maxY-minY) - 1
-        hdn = 180.0 * math.atan2(x,y)/math.pi - 90
+        hdn = 90 - 180.0 * math.atan2(x,y)/math.pi
         if(hdn<0):hdn+=360
+        if(hdn>360):hdn-=360
         return hdn
 
 def bearingToPoint(srcLat,srcLon,destLat,destLon):

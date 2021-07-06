@@ -27,6 +27,7 @@ MOT_R_B=pwmio.PWMOut(board.D6,frequency=25,duty_cycle=0)
 oncycle = 32768
 lastcommandtime = time.time()
 ledson = True;
+automode=False;
 def setSpeeds(left,right):
 	global oncycle
 	if(left>0):
@@ -155,15 +156,15 @@ def heartBeat():
 		LED_G.value=True&ledson;
 		LED_R.value=((beat%4)!=0)&ledson;
 	if(motMode=="FR"):
-                setSpeeds(-1,-0.5)
-                LED_W.value=True&ledson;
-                LED_G.value=((beat%2)!=0)&ledson;
-                LED_R.value=True&ledson;
-        if(motMode=="FL"):
-                setSpeeds(-0.5,-1)
-                LED_W.value=True&ledson;
-                LED_G.value=True&ledson;
-                LED_R.value=((beat%2)!=0)&ledson;
+		setSpeeds(-1,-0.5)
+		LED_W.value=True&ledson;
+		LED_G.value=((beat%2)!=0)&ledson;
+		LED_R.value=True&ledson;
+	if(motMode=="FL"):
+		setSpeeds(-0.5,-1)
+		LED_W.value=True&ledson;
+		LED_G.value=True&ledson;
+		LED_R.value=((beat%2)!=0)&ledson;
 	if(motMode=="S"):
 		LED_W.value=True&ledson;
 		LED_G.value=True&ledson;
